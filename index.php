@@ -10,33 +10,25 @@ include "Classes/Template/Template.php";
 
 $s = new sql();
 
-//Preencher para evitar conflitos com tabelas de mesmo nome
-$nomeBranco = '';
-
-
 //Consulta as tabelas
 foreach ($s->consultaNUMBER("SHOW TABLES") as $l) {
-
-    //Variavel para guardar a primary key da tabela
-    $primary = "";
 
     //Nome da Tabela
     $nomeTable = $l[0];
 
     //Apaga a variavel $Campos se ela existir
-    if (isset($Campos)) {
+    if (isset($Campos))
         unset($Campos);
-    }
+
 
     //Busca as colunas
-    foreach ($s->consulta("SHOW COLUMNS FROM " . $nomeTable) as $i) {
+    foreach ($s->consulta("SHOW COLUMNS FROM " . $nomeTable) as $i) :
         $Campos[] = array($i->Field, $nomeTable);
         $verifica[] = $i->Field;
-    }
+    endforeach;
 
     //Consulta relações e primary key
-    $consulta = "";
-    $consulta .= "SELECT column_name            AS NomeColuna, ";
+    $consulta  = "SELECT column_name            AS NomeColuna, ";
     $consulta .= "       constraint_name        AS Tipo, ";
     $consulta .= "       referenced_column_name AS CampoReferencia, ";
     $consulta .= "       referenced_table_name  AS TabelaReferencia ";
