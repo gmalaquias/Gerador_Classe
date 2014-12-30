@@ -1,5 +1,4 @@
 <?php
-include "../../system/config/config.php";
 
 class conexao extends PDO {
  
@@ -14,7 +13,7 @@ class conexao extends PDO {
         // Se o a instancia não existe eu faço uma
         if(!isset( self::$instancia )){
             try {
-                self::$instancia = new Conexao("mysql:host=".DB_HOST.";dbname=".DB_NAME, DB_USER, DB_PASS);
+                self::$instancia = new Conexao("mysql:host=localhost;dbname=alcatraz", 'root', '');
                 self::$instancia->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
             } catch ( Exception $e ) {
                 echo 'Erro ao conectar';

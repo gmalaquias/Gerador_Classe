@@ -1,12 +1,12 @@
 <?php
 
 //include class
-include "sql.class.php";
-include "Template.php";
+include "Classes/sql.class.php";
+include "Classes/Template/Template.php";
 
 //crias as pastas
-@mkdir("Class");
-@mkdir("Class/DAL");
+@mkdir("Entities");
+@mkdir("Entities/Generator");
 
 $s = new sql();
 
@@ -30,7 +30,7 @@ foreach ($s->consultaNUMBER("SHOW TABLES") as $l) {
 
     //Busca as colunas
     foreach ($s->consulta("SHOW COLUMNS FROM " . $nomeTable) as $i) {
-        $Campos[] = array($i->Field);
+        $Campos[] = array($i->Field, $nomeTable);
         $verifica[] = $i->Field;
     }
 
@@ -53,14 +53,15 @@ foreach ($s->consultaNUMBER("SHOW TABLES") as $l) {
             if ($v->Tipo == "PRIMARY") {
                 $k = array_search($v->NomeColuna, $Campos);
                 $Campos[$k][] = "PRIMARY";
-                $primary = $v->NomeColuna;
             } else {
                 //Pega as relações
                 $tabela = $v->TabelaReferencia;
                 $i = 1;
                 //verifica o nome
+
+                $tabelatmp = $tabela;
                 while (in_array($tabela, $verifica)) {
-                    $tabela .= $i;
+                    $tabela = $tabelatmp . $i;
                     $i++;
                 }
                 $verifica[] = $tabela;
@@ -69,51 +70,81 @@ foreach ($s->consultaNUMBER("SHOW TABLES") as $l) {
         endforeach;
     }
 
-    echo '<br><br><br>';
+echo '<br><br><br>';
 
-    $data = date("d/m/Y H:i:s");
+$data = date("d/m/Y H:i:s");
 
-    $vars = "";
-    $set = "//Preenche o Obj";
-    foreach ($Campos as $l) {
-        if (count($l) == 1) {
-            $vars .= "\n var $" . $l[0] . ";";
-            $set .= "\n\t\t \$obj->" . $l[0] . " = \$l->" . $l[0] . ";";
-        } else {
-            if ($l[1] == "PRIMARY") {
-                $vars .= "/**
-                 * @PrimaryKey: true
+$vars = "";
+foreach ($Campos as $l) {
+
+
+    $type = null;
+
+
+    if (count($l) == 2) {
+        //pegaTipo
+        $consulta = "
+    SHOW FIELDS
+FROM ".$l[1]." where Field ='".$l[0]."'";
+        foreach ($s->consulta($consulta) as $v):
+
+           $type = $v->Type;
+
+        endforeach;
+
+        if($type != null){
+            $vars .= "\n/**
+                 * @Name: ".$l[0]."
+                 * @Type: ".$type."
                  */";
-                $vars .= "\n var \$" . $l[0] . ";";
-                $set .= "\n\t\t \$obj->" . $l[0] . " = \$l->" . $l[0] . ";";
-            } else {
-                $vars .= "\n var $" . $l[0] . "; //FK";
-                $vars .= "\n var \$PK" . $l[0] . " = \"" . $l[1] . "\";"; //FK";
+        }
 
-                $set .= "\n";
-                $set .= "\n\t\t //Busca objeto $l[2]";
-                $set .= "\n\t\t \$objectFK = new " . $l[2] . "DB();";
-                $set .= "\n\t\t \$FK = \$obj->PK" . $l[0] . ";";
-                $set .= "\n\t\t \$obj->" . $l[0] . " = \$objectFK->getById(\$l->\$FK);";
-                
+        if($type == 'timestamp')
+            $vars .= "\n var $" . $l[0] . " = CURRENT_TIMESTAMP;\n";
+        else if ($type == 'tinyint(1)')
+            $vars .= "\n var $" . $l[0] . " = false;\n";
+            else
+            $vars .= "\n var $" . $l[0] . ";\n";
+
+    }else {
+        if ($l[2] == "PRIMARY") {
+
+            $consulta = "
+    SHOW FIELDS
+FROM ".$l[1]." where Field ='".$l[0]."'";
+            foreach ($s->consulta($consulta) as $v):
+
+                $type = $v->Type;
+
+            endforeach;
+
+
+            $vars .= "/**
+                 * @PrimaryKey
+                 * @Name: ".$l[0]."
+                 * @Type: ".$type."
+                 */";
+            $vars .= "\n var \$" . $l[0] . ";\n";
+
+        } else {
+            if($l[0] != '') {
+                $vars .= "\n/**
+                 * @Name: _".ucfirst($l[0])."
+                 * @Fk: ".$l[1]."
+                 * @Type: ".ucfirst($l[2])."
+                 */";
+                $vars .= "\n var \$_" . ucfirst($l[0]) . ";\n";
             }
         }
     }
+}
 
-    $template = new Template("classVariaveis.tpl");
-    $template->set('date', $data);
-    $template->set('C', ucfirst($nomeTable));
-    $template->set('vars', $vars);
-    $template->write('Class/DAL/' . ucfirst($nomeTable) . '.php');
+$template = new Template("ClasseTemplate.tpl");
+$template->set('date', $data);
+$template->set('C', ucfirst($nomeTable));
+$template->set('vars', $vars);
+$template->write('Entities/Generator/' . ucfirst($nomeTable) . '.php');
 
-
-
-    $class = new Template("classSql.tpl");
-    $class->set('Data', $data);
-    $class->set('Table', $nomeTable);
-    $class->set('Primary', $primary);
-    $class->set('contrucao', $set);
-    $class->write('Class/DB/' . $nomeTable . 'DB.class.php');
 }
 
 
